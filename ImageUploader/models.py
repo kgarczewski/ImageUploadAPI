@@ -4,15 +4,6 @@ from django.urls import reverse
 
 
 class Plan(models.Model):
-    # BASIC = 'basic'
-    # PREMIUM = 'premium'
-    # ENTERPRISE = 'enterprise'
-    #
-    # PLAN_CHOICES = [
-    #     (BASIC, 'Basic'),
-    #     (PREMIUM, 'Premium'),
-    #     (ENTERPRISE, 'Enterprise'),
-    # ]
     name = models.CharField(max_length=100, unique=True)
     thumbnail_200 = models.BooleanField(null=True)
     thumbnail_400 = models.BooleanField(null=True)
@@ -38,12 +29,10 @@ class Image(models.Model):
         related_name='images',
     )
     image = models.ImageField(upload_to='images')
-    expiry_time = models.PositiveIntegerField(null=True)
     small_thumbnail = models.ImageField(upload_to='small_thumbnail', blank=True, null=True)
     large_thumbnail = models.ImageField(upload_to='large_thumbnail', blank=True, null=True)
     expiration_date = models.DateTimeField(null=True, blank=True)
     expiration_token = models.CharField(max_length=255, null=True, blank=True)
-    is_public = models.BooleanField(default=False)
     expiration_link = models.CharField(max_length=500, blank=True, null=True)
 
     def __str__(self):
