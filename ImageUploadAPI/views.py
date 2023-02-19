@@ -33,7 +33,7 @@ class ImageView(ViewSetMixin, generics.ListAPIView):
         if request is None:
             return Response(status=400, data={'message': 'Bad Request'})
 
-        images = self.get_queryset()
+        images = self.get_queryset().filter(user=request.user)
         # get paginated results
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(images, request)
