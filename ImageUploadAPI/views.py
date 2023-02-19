@@ -8,13 +8,11 @@ import datetime
 from rest_framework.views import APIView
 from django.utils import timezone
 from django.urls import reverse
-from django.core.exceptions import PermissionDenied
 from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from django.core.validators import validate_integer
 from django.http import HttpResponse, Http404
 from django.shortcuts import get_object_or_404
 from mimetypes import guess_type
-from .utils import generate_expiring_url
 from rest_framework.pagination import PageNumberPagination
 
 
@@ -47,11 +45,11 @@ class ImageView(ViewSetMixin, generics.ListAPIView):
         for image in page:
 
             data = {
-                'id': image.id if request.user.account_tier.original_file is not False else '',
+                'id': image.id if request.user.account_tier.original_file else '',
                 'image': image.image,
-                'small_thumbnail': image.small_thumbnail if request.user.account_tier.thumbnail_200 is not False else '',
-                'large_thumbnail': image.large_thumbnail if request.user.account_tier.thumbnail_400 is not False else '',
-                'expiration_link': image.expiration_link if request.user.account_tier.expiring_links is not False else '',
+                'small_thumbnail': image.small_thumbnail if request.user.account_tier.thumbnail_200 else '',
+                'large_thumbnail': image.large_thumbnail if request.user.account_tier.thumbnail_400 else '',
+                'expiration_link': image.expiration_link if request.user.account_tier.expiring_links else '',
                 'expiration_date': image.expiration_date
             }
 
@@ -73,31 +71,6 @@ class ImageCreateView(ViewSetMixin, generics.CreateAPIView):
         serializer.save(user=self.request.user)
 
 
-class ExpirationLinkView(APIView):
-    def post(self, request, id):
-        # Get the image object
-        try:
-            image = Image.objects.get(id=id)
-        except Image.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-        # Get the expiration time from the form data
-        expiration_seconds = request.POST.get('expiration_seconds')
-        if not expiration_seconds:
-            return Response({'expiration_seconds': 'This field is required.'},status=status.HTTP_400_BAD_REQUEST)
-
-        # Generate the expiration link
-        expiration_date = timezone.now() + datetime.timedelta(seconds=int(expiration_seconds))
-        expiration_link = generate_expiring_url(request, image.image, int(expiration_seconds), image.expiration_token)
-
-        # Update the image object with the expiration date
-        image.expiration_date = expiration_date
-        image.save()
-
-        # Return the expiration link
-        return Response({'expiration_link': expiration_link})
-
-
 class GenerateExpiringUrlView(APIView):
     def post(self, request, image_id):
         # Validate the input.
@@ -111,10 +84,6 @@ class GenerateExpiringUrlView(APIView):
 
         # Retrieve the image.
         image = get_object_or_404(Image, pk=image_id)
-
-        # Check if the user is authorized to access the image.
-        if not image.is_public and (not request.user.is_authenticated or not image.user == request.user):
-            raise PermissionDenied()
 
         # Generate the expiration timestamp.
         expiration_time = timezone.now() + timezone.timedelta(seconds=expiration_seconds)
@@ -148,8 +117,6 @@ class ServeImageView(APIView):
         image = get_object_or_404(Image, pk=image_id)
 
         # Check if the user is authorized to access the image.
-        if not image.is_public and (not request.user.is_authenticated or not image.user == request.user):
-            raise PermissionDenied()
 
         if image.expiration_date and image.expiration_date < timezone.now():
             return Response({'detail': 'The link has expired.'}, status=404)

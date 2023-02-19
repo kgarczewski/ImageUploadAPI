@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from ImageUploadAPI.views import ImageView, ImageCreateView, ExpirationLinkView, GenerateExpiringUrlView, ServeImageView
+from ImageUploadAPI.views import ImageView, ImageCreateView,  GenerateExpiringUrlView, ServeImageView
 from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 from django.conf.urls.static import static
@@ -25,7 +25,6 @@ from .utils import serve_thumbnail, generate_expiring_url
 router.register('my_images', ImageView, 'imagelist')
 router.register('add_image', ImageCreateView, 'addimage')
 urlpatterns = [
-    path('<int:pk>/expiration_link/', ExpirationLinkView.as_view(), name='expiration-link'),
     path('my_images/<int:image_id>/generate_expiring_url/', GenerateExpiringUrlView.as_view(), name='expiration_link'),
     path('<int:image_id>/serve_image/<str:signature>/', ServeImageView.as_view(), name='serve-image'),
     path('images/<int:image_id>/generate_expiring_url/', generate_expiring_url, name='image-detail'),

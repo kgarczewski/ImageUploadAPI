@@ -1,8 +1,10 @@
 from datetime import timedelta
+
+from django.core.files.base import ContentFile
 from django.core.signing import TimestampSigner
 from rest_framework import status
 from django.urls import reverse
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, override_settings
 from django.test import RequestFactory
 from rest_framework.test import APIRequestFactory, force_authenticate
 from ImageUploader.models import Image, CustomUser, Plan
@@ -11,6 +13,8 @@ from PIL import Image as pilimage
 import os
 from django.core.files import File
 from django.utils import timezone
+import time
+import datetime
 
 
 class TestImageView(APITestCase):
@@ -140,3 +144,75 @@ class GenerateExpiringUrlViewTest(APITestCase):
         )
         self.assertEqual(self.image.expiration_token, expected_expiration_token)
         self.assertEqual(self.image.expiration_link, response.data['url'])
+
+
+class ExpirationLinkViewTestCase(APITestCase):
+    def setUp(self):
+        self.plan = Plan.objects.create(
+            name='premium',
+            thumbnail_200=True,
+            thumbnail_400=True,
+            original_file=True,
+            expiring_links=True,
+            small_thumbnail_size=100,
+            large_thumbnail_size=300,
+        )
+        self.user = CustomUser.objects.create(
+            username='testuser',
+            password='testpass',
+            account_tier=self.plan,
+        )
+        self.image = Image.objects.create(user=self.user, image="image.jpg", expiration_token="token123")
+
+    def test_post_request_with_expiration_seconds(self):
+        expiration_link = reverse('expiration_link', kwargs={'image_id': self.image.id})
+        data = {'expiration_seconds': 500}
+        response = self.client.post(expiration_link, data)
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_request_without_expiration_seconds(self):
+        url = reverse('expiration_link', kwargs={'image_id': self.image.id})
+        data = {}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertFalse('expiration_seconds' in response.data)
+
+
+class ServeImageViewTestCase(APITestCase):
+    def generate_signature(self, image_id):
+        signer = TimestampSigner()
+        value = '{}{}'.format(image_id, int(time.time()))
+        return signer.sign(value)
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(
+            username='testuser',
+            email='testuser@example.com',
+            password='testpass',
+        )
+        self.image = Image.objects.create(
+            user=self.user,
+            image='images/test.jpg',
+            small_thumbnail='images/test_small_thumbnail.jpg',
+            large_thumbnail='images/test_large_thumbnail.jpg',
+        )
+        self.signer = TimestampSigner()
+
+    def test_serve_expired_image(self):
+        # Set an expiration date in the past.
+        image = Image.objects.create(
+            user=self.user,
+            image=ContentFile(b'Test image content', 'test_image.png'),
+            expiration_date=timezone.now() - timezone.timedelta(hours=1),
+        )
+
+        # Save the image file before generating the signature
+        image.image.save(image.image.name, ContentFile(b'Test image content', 'test_image.png'))
+        image.save()
+
+        # Generate the signature
+        signer = TimestampSigner()
+        signature = self.generate_signature(image.id)
+
+        # Try to access the expired image using the signature
+        response = self.client.get(reverse('serve-image', args=[image.id, signature]))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
