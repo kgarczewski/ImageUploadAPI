@@ -1,0 +1,6 @@
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="image_id" value="{{ image.id }}">
+  <input type="number" name="expiration_time" min="10" max="30000" required>
+  <button type="submit">Create expiration link</button>
+</form>

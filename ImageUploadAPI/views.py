@@ -1,0 +1,175 @@
+from rest_framework.renderers import TemplateHTMLRenderer
+from rest_framework.response import Response
+from ImageUploader.models import Image
+from .serializers import ImageCreateSerializer, ImageSerializer
+from rest_framework import generics, status
+from rest_framework.viewsets import ViewSetMixin
+import datetime
+from rest_framework.views import APIView
+from django.utils import timezone
+from django.urls import reverse
+from django.core.exceptions import PermissionDenied
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+from django.core.validators import validate_integer
+from django.http import HttpResponse, Http404
+from django.shortcuts import get_object_or_404
+from mimetypes import guess_type
+from .utils import generate_expiring_url
+from rest_framework.pagination import PageNumberPagination
+
+
+class ImagePagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class ImageView(ViewSetMixin, generics.ListAPIView):
+    queryset = Image.objects.all()
+    serializer_class = ImageSerializer
+    template_name = 'image_view.html'
+    renderer_classes = [TemplateHTMLRenderer]
+    pagination_class = ImagePagination
+
+    def list(self, request, *args, **kwargs):
+        if request is None:
+            return Response(status=400, data={'message': 'Bad Request'})
+
+        images = self.get_queryset()
+        # get paginated results
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(images, request)
+        next = paginator.get_next_link()
+        previous = paginator.get_previous_link()
+
+        image_data = []
+
+        for image in page:
+
+            data = {
+                'id': image.id if request.user.account_tier.original_file is not False else '',
+                'image': image.image,
+                'small_thumbnail': image.small_thumbnail if request.user.account_tier.thumbnail_200 is not False else '',
+                'large_thumbnail': image.large_thumbnail if request.user.account_tier.thumbnail_400 is not False else '',
+                'expiration_link': image.expiration_link if request.user.account_tier.expiring_links is not False else '',
+                'expiration_date': image.expiration_date
+            }
+
+            image_data.append(data)
+        # determine if there are more pages
+        has_more_pages = len(page) == paginator.page_size
+
+        context = {
+            'images': image_data, 'page': page, 'has_more_pages': has_more_pages, 'next': next, 'previous': previous
+        }
+        return Response(context, template_name='image_view.html')
+
+
+class ImageCreateView(ViewSetMixin, generics.CreateAPIView):
+    queryset = Image.objects.all()
+    serializer_class = ImageCreateSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class ExpirationLinkView(APIView):
+    def post(self, request, id):
+        # Get the image object
+        try:
+            image = Image.objects.get(id=id)
+        except Image.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        # Get the expiration time from the form data
+        expiration_seconds = request.POST.get('expiration_seconds')
+        if not expiration_seconds:
+            return Response({'expiration_seconds': 'This field is required.'},status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate the expiration link
+        expiration_date = timezone.now() + datetime.timedelta(seconds=int(expiration_seconds))
+        expiration_link = generate_expiring_url(request, image.image, int(expiration_seconds), image.expiration_token)
+
+        # Update the image object with the expiration date
+        image.expiration_date = expiration_date
+        image.save()
+
+        # Return the expiration link
+        return Response({'expiration_link': expiration_link})
+
+
+class GenerateExpiringUrlView(APIView):
+    def post(self, request, image_id):
+        # Validate the input.
+        try:
+            expiration_seconds = int(request.POST.get('expiration_seconds'))
+            validate_integer(expiration_seconds)
+            if not 10 <= expiration_seconds <= 30000:
+                raise ValueError('Invalid expiration time.')
+        except (ValueError, TypeError):
+            raise Http404('Invalid expiration time.')
+
+        # Retrieve the image.
+        image = get_object_or_404(Image, pk=image_id)
+
+        # Check if the user is authorized to access the image.
+        if not image.is_public and (not request.user.is_authenticated or not image.user == request.user):
+            raise PermissionDenied()
+
+        # Generate the expiration timestamp.
+        expiration_time = timezone.now() + timezone.timedelta(seconds=expiration_seconds)
+
+        # Create the signed URL.
+        signer = TimestampSigner()
+        signed_value = signer.sign(str(image_id) + str(expiration_time.timestamp()))
+        url = reverse('serve-image', kwargs={'image_id': image_id, 'signature': signed_value})
+
+        # Create the expiration token
+        expiration_token = signer.sign(str(expiration_seconds))
+
+        # Save the expiration token to the image model
+        image.expiration_token = expiration_token
+        image.expiration_date = expiration_time
+        image.expiration_link = request.build_absolute_uri(url)
+        image.save()
+
+        # Construct the full URL.
+        full_url = request.build_absolute_uri(url)
+
+        if url:
+            return Response({"url": full_url, "expired": False})
+        else:
+            return Response({"detail": "Not found.", "expired": True}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ServeImageView(APIView):
+    def get(self, request, image_id, signature):
+        # Retrieve the image.
+        image = get_object_or_404(Image, pk=image_id)
+
+        # Check if the user is authorized to access the image.
+        if not image.is_public and (not request.user.is_authenticated or not image.user == request.user):
+            raise PermissionDenied()
+
+        if image.expiration_date and image.expiration_date < timezone.now():
+            return Response({'detail': 'The link has expired.'}, status=404)
+
+        # Validate the signature.
+        signer = TimestampSigner()
+        try:
+            value = signer.unsign(signature, max_age=30000)
+            timestamp = float(str(value)[len(str(image_id)):])
+            expiration_time = timezone.make_aware(datetime.datetime.fromtimestamp(timestamp), timezone.utc)
+            if expiration_time <= timezone.now():
+                raise BadSignature('Signature has expired.')
+        except (BadSignature, ValueError, SignatureExpired):
+            raise Http404('Invalid signature.')
+
+        # Serve the image.
+        content_type = guess_type(image.image.name)[0]
+        if not content_type:
+            content_type = 'application/octet-stream'
+        response = HttpResponse(content_type=content_type)
+        response['Content-Disposition'] = 'filename="{}"'.format(image.image.name)
+        response.write(image.image.read())
+        return response
