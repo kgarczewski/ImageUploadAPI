@@ -9,7 +9,7 @@ To run the project, first clone the repository from GitHub:
 Then, navigate to the project directory and use Docker Compose to start the API:
     
     cd ImageUploadAPI
-    docker-compose up
+    docker-compose up --build
 
 <h3>Uploading Images</h3>
 
