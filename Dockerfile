@@ -8,5 +8,8 @@ RUN pip3 install -r requirements.txt
 RUN pip3 install psycopg2-binary
 
 COPY . /app/
+COPY entrypoint.sh /app/entrypoint.sh
 
-CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
+RUN chmod +x /app/entrypoint.sh
+
+CMD ["/app/entrypoint.sh"]

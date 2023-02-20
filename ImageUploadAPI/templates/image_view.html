@@ -23,8 +23,8 @@
         {% if request.user.account_tier.thumbnail_200 %}<td><a href="{{ image.small_thumbnail.url }}" target="_blank">small thumbnail</a></td>{% endif %}
         {% if request.user.account_tier.thumbnail_400 %}<td><a href="{{ image.large_thumbnail.url }}" target="_blank">large thumbnail</a></td>{%endif%}
         {% if request.user.account_tier.original_file %}<td><img src="{{ image.image.url }}" width="100px"></td> {% else %} <td></td>{% endif %}
-       {% if request.user.account_tier.expiring_links %} <td class="expiration-link-container-{{ image.id }}">{% endif %}
-          {% if image.expiration_link %}<a href="{{ image.expiration_link }}" onclick="return checkExpiration('{{ image.expiration_date }}')" target="_blank" data-expiration-link="{{ image.expiration_date }}">{{ image.expiration_link }} </a>{% else %} <a></a></td>{% endif %}
+       {% if request.user.account_tier.expiring_links %} <td class="expiration-link-container-{{ image.id }}">
+          {% if image.expiration_link %}<a href="{{ image.expiration_link }}" onclick="return checkExpiration('{{ image.expiration_date }}')" target="_blank" data-expiration-link="{{ image.expiration_date }}">{{ image.expiration_link }} </a>{% else %} <a></a></td>{% endif %}{% endif %}
          {% if request.user.account_tier.expiring_links != False %}<td>
           <form id="expiration-form-{{ image.id }}" class="expiration-form" data-image-id="{{ image.id }}">
             <input type="number" name="expiration_seconds" placeholder="Expiration time in seconds" min="300" max="30000">
