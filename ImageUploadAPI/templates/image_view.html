@@ -1,6 +1,11 @@
 {% extends "rest_framework/base.html" %}
 {% load static %}
 {% block content %}
+<form action="{% url 'logout' %}" method="post">
+  {% csrf_token %}
+  <button type="submit">Logout</button>
+</form>
+
 <table class="table">
     <thead>
       <tr>

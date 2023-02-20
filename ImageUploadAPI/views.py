@@ -1,19 +1,47 @@
-from rest_framework.renderers import TemplateHTMLRenderer
-from rest_framework.response import Response
 from ImageUploader.models import Image
 from .serializers import ImageCreateSerializer, ImageSerializer
-from rest_framework import generics, status
-from rest_framework.viewsets import ViewSetMixin
+from mimetypes import guess_type
 import datetime
-from rest_framework.views import APIView
+
 from django.utils import timezone
 from django.urls import reverse
 from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from django.core.validators import validate_integer
 from django.http import HttpResponse, Http404
-from django.shortcuts import get_object_or_404
-from mimetypes import guess_type
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib.auth import logout
+from django.contrib.auth.views import LoginView
+
+from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import TemplateHTMLRenderer
+from rest_framework.response import Response
+from rest_framework import generics, status
+from rest_framework.viewsets import ViewSetMixin
+
+
+class CustomObtainAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({'token': token.key})
+
+
+class CustomLoginView(LoginView):
+    template_name = 'login_view.html'
+
+
+class CustomLogout(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        logout(request)
+        return Response({'detail': 'Successfully logged out.'})
 
 
 class ImagePagination(PageNumberPagination):
@@ -29,7 +57,10 @@ class ImageView(ViewSetMixin, generics.ListAPIView):
     renderer_classes = [TemplateHTMLRenderer]
     pagination_class = ImagePagination
 
+
     def list(self, request, *args, **kwargs):
+        viewset = ImageView(**{'request': request})
+        extra_actions = viewset.get_extra_actions()
         if request is None:
             return Response(status=400, data={'message': 'Bad Request'})
 
@@ -62,6 +93,10 @@ class ImageView(ViewSetMixin, generics.ListAPIView):
         }
         return Response(context, template_name='image_view.html')
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
 
 class ImageCreateView(ViewSetMixin, generics.CreateAPIView):
     queryset = Image.objects.all()
@@ -69,6 +104,11 @@ class ImageCreateView(ViewSetMixin, generics.CreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
 
 
 class GenerateExpiringUrlView(APIView):

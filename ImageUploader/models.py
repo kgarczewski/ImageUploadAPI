@@ -18,7 +18,7 @@ class Plan(models.Model):
 
 class CustomUser(AbstractUser):
     account_tier = models.ForeignKey(
-        Plan, on_delete=models.CASCADE, related_name='account_tier_users', to_field='name', null=True
+        Plan, on_delete=models.CASCADE, related_name='account_tier_users', to_field='name', null=True, blank=True
     )
 
 

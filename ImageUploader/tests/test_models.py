@@ -34,7 +34,6 @@ def image(user):
         return Image.objects.create(
             user=user,
             image=image_file,
-            is_public=True,
         )
 
 
@@ -58,7 +57,6 @@ def test_user_creation(user):
 def test_image_creation(image, user):
     assert Image.objects.count() == 1
     assert Image.objects.first().user == user
-    assert Image.objects.first().is_public is True
     assert Image.objects.first().small_thumbnail is not None
     assert Image.objects.first().large_thumbnail is not None
 

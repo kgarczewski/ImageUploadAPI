@@ -15,16 +15,27 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from ImageUploadAPI.views import ImageView, ImageCreateView,  GenerateExpiringUrlView, ServeImageView
-from rest_framework.routers import DefaultRouter
-router = DefaultRouter()
+from ImageUploadAPI.views import (
+    ImageView,
+    ImageCreateView,
+    GenerateExpiringUrlView,
+    ServeImageView,
+    CustomObtainAuthToken,
+    CustomLogout,
+    CustomLoginView
+)
 from django.conf.urls.static import static
 from django.conf import settings
 from .utils import serve_thumbnail, generate_expiring_url
-
+from rest_framework.routers import DefaultRouter
+router = DefaultRouter()
 router.register('my_images', ImageView, 'imagelist')
 router.register('add_image', ImageCreateView, 'addimage')
+
 urlpatterns = [
+    path('login/', CustomLoginView.as_view(), name='login'),
+    path('api-token-auth/', CustomObtainAuthToken.as_view(), name='api_token_auth'),
+    path('logout/', CustomLogout.as_view(), name='logout'),
     path('my_images/<int:image_id>/generate_expiring_url/', GenerateExpiringUrlView.as_view(), name='expiration_link'),
     path('<int:image_id>/serve_image/<str:signature>/', ServeImageView.as_view(), name='serve-image'),
     path('images/<int:image_id>/generate_expiring_url/', generate_expiring_url, name='image-detail'),

@@ -1,12 +1,10 @@
 from datetime import timedelta
-
 from django.core.files.base import ContentFile
 from django.core.signing import TimestampSigner
 from rest_framework import status
 from django.urls import reverse
-from rest_framework.test import APITestCase, override_settings
+from rest_framework.test import APITestCase, APIRequestFactory, force_authenticate
 from django.test import RequestFactory
-from rest_framework.test import APIRequestFactory, force_authenticate
 from ImageUploader.models import Image, CustomUser, Plan
 from ImageUploadAPI.views import ImageView
 from PIL import Image as pilimage
@@ -14,7 +12,6 @@ import os
 from django.core.files import File
 from django.utils import timezone
 import time
-import datetime
 
 
 class TestImageView(APITestCase):
@@ -183,6 +180,7 @@ class ServeImageViewTestCase(APITestCase):
         signer = TimestampSigner()
         value = '{}{}'.format(image_id, int(time.time()))
         return signer.sign(value)
+
     def setUp(self):
         self.user = CustomUser.objects.create_user(
             username='testuser',
@@ -210,7 +208,6 @@ class ServeImageViewTestCase(APITestCase):
         image.save()
 
         # Generate the signature
-        signer = TimestampSigner()
         signature = self.generate_signature(image.id)
 
         # Try to access the expired image using the signature
