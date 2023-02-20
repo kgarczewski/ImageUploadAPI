@@ -43,7 +43,6 @@ class TestImageView(APITestCase):
         request = self.factory.get('/')
         request.user = self.user
         response = self.view(request)
-        response.render()  # Render the response content before accessing it
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'image1.png')
         self.assertContains(response, 'image2.png')
@@ -56,8 +55,7 @@ class TestImageView(APITestCase):
 
     def test_image_view_list_no_request(self):
         request = RequestFactory().get('')
-        user = self.user
-        force_authenticate(request, user=user)
+        request.user = self.user
         response = self.view(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 5)
@@ -73,16 +71,20 @@ class TestImageView(APITestCase):
 
 class TestImageCreateView(APITestCase):
     def setUp(self):
-        self.user = CustomUser.objects.create_user(
+        self.plan = Plan.objects.create(
+            name='premium',
+            thumbnail_200=True,
+            thumbnail_400=True,
+            original_file=True,
+            expiring_links=True,
+            small_thumbnail_size=100,
+            large_thumbnail_size=300,
+        )
+        self.user = CustomUser.objects.create(
             username='testuser',
-            email='testuser@example.com',
             password='testpass',
+            account_tier=self.plan,
         )
-        self.account_tier = Plan.objects.create(
-            name='Test Tier', small_thumbnail_size=100, large_thumbnail_size=200
-        )
-        self.user.account_tier = self.account_tier
-        self.user.save()
 
     def test_create_image(self):
         self.client.force_login(self.user)  # log in the user
@@ -108,17 +110,21 @@ class TestImageCreateView(APITestCase):
 
 class GenerateExpiringUrlViewTest(APITestCase):
     def setUp(self):
-        self.user = CustomUser.objects.create_user(
+        self.plan = Plan.objects.create(
+            name='premium',
+            thumbnail_200=True,
+            thumbnail_400=True,
+            original_file=True,
+            expiring_links=True,
+            small_thumbnail_size=100,
+            large_thumbnail_size=300,
+        )
+        self.user = CustomUser.objects.create(
             username='testuser',
-            email='testuser@example.com',
             password='testpass',
+            account_tier=self.plan,
         )
-        self.account_tier = Plan.objects.create(
-            name='Test Tier', small_thumbnail_size=100, large_thumbnail_size=200
-        )
-        self.user.account_tier = self.account_tier
-        self.user.save()
-        self.image = Image.objects.create(user=self.user)
+        self.image = Image.objects.create(user=self.user, image='media/images/Figure_1.png')
 
     def test_generate_expiring_url(self):
         self.client.force_login(self.user)
@@ -182,10 +188,19 @@ class ServeImageViewTestCase(APITestCase):
         return signer.sign(value)
 
     def setUp(self):
-        self.user = CustomUser.objects.create_user(
+        self.plan = Plan.objects.create(
+            name='premium',
+            thumbnail_200=True,
+            thumbnail_400=True,
+            original_file=True,
+            expiring_links=True,
+            small_thumbnail_size=100,
+            large_thumbnail_size=300,
+        )
+        self.user = CustomUser.objects.create(
             username='testuser',
-            email='testuser@example.com',
             password='testpass',
+            account_tier=self.plan,
         )
         self.image = Image.objects.create(
             user=self.user,

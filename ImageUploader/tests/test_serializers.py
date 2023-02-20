@@ -52,16 +52,20 @@ class ImageSerializerTestCase(APITestCase):
 
 class ImageCreateSerializerTestCase(APITestCase):
     def setUp(self):
-        self.user = CustomUser.objects.create_user(
+        self.plan = Plan.objects.create(
+            name='premium',
+            thumbnail_200=True,
+            thumbnail_400=True,
+            original_file=True,
+            expiring_links=True,
+            small_thumbnail_size=100,
+            large_thumbnail_size=300,
+        )
+        self.user = CustomUser.objects.create(
             username='testuser',
-            email='testuser@example.com',
             password='testpass',
+            account_tier=self.plan,
         )
-        self.account_tier = Plan.objects.create(
-            name='Test Tier', small_thumbnail_size=100, large_thumbnail_size=200
-        )
-        self.user.account_tier = self.account_tier
-        self.user.save()
         self.image = Image.objects.create(user=self.user, image='media/images/Figure_1.png')
 
     def test_create_valid_data(self):
@@ -89,8 +93,8 @@ class ImageCreateSerializerTestCase(APITestCase):
 
         self.assertEqual(serializer.data['id'], serializer.instance.pk)
         self.assertEqual(actual_path, serializer.instance.image.url)
-        self.assertEqual(serializer.instance.small_thumbnail.height, self.account_tier.small_thumbnail_size)
-        self.assertEqual(serializer.instance.large_thumbnail.height, self.account_tier.large_thumbnail_size)
+        self.assertEqual(serializer.instance.small_thumbnail.height, self.user.account_tier.small_thumbnail_size)
+        self.assertEqual(serializer.instance.large_thumbnail.height, self.user.account_tier.large_thumbnail_size)
         self.assertIn('/media/', serializer.instance.small_thumbnail.url)
         self.assertIn('/media/', serializer.instance.large_thumbnail.url)
 
