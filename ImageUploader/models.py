@@ -1,4 +1,3 @@
-from django.contrib.auth.base_user import BaseUserManager
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.urls import reverse
@@ -16,35 +15,14 @@ class Plan(models.Model):
     def __str__(self):
         return self.name
 
-
-class CustomUserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
-        if not email:
-            raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, email, password, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('account_tier', get_default_plan())
-        return self.create_user(email, password=password, **extra_fields)
-
-
 def get_default_plan():
     return Plan.objects.get(name='Basic')
-
 
 class CustomUser(AbstractUser):
     account_tier = models.ForeignKey(
         Plan, on_delete=models.CASCADE, related_name='account_tier_users', to_field='name', null=True, blank=True,
         default=get_default_plan
     )
-    objects = CustomUserManager()
-
 
 class Image(models.Model):
     user = models.ForeignKey(
