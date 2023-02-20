@@ -70,7 +70,7 @@ class ImageCreateSerializerTestCase(APITestCase):
 
     def test_create_valid_data(self):
         # create a file to upload
-        rgba_image = pilimage.open('media/images/Figure_1.png')
+        rgba_image = pilimage.open('ImageUploader/tests/test_image/ball.jpg')
         rgb_image = rgba_image.convert('RGB')
         rgb_image.save('media/images/Figure_1.png')
 

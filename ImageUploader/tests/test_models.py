@@ -29,7 +29,7 @@ def user(plan):
 
 @pytest.fixture
 def image(user):
-    with open('media/images/Figure_1.png', 'rb') as f:
+    with open('ImageUploader/tests/test_image/ball.jpg', 'rb') as f:
         image_file = SimpleUploadedFile('test_image.jpg', f.read(), content_type='image/jpeg')
         return Image.objects.create(
             user=user,

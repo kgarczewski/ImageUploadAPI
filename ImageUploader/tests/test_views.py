@@ -89,11 +89,11 @@ class TestImageCreateView(APITestCase):
     def test_create_image(self):
         self.client.force_login(self.user)  # log in the user
         # create a file to upload
-        rgba_image = pilimage.open('/home/krzysztof/Desktop/ImageUploadAPI/media/images/Figure_1.png')
+        rgba_image = pilimage.open('ImageUploader/tests/test_image/ball.jpg')
         rgb_image = rgba_image.convert('RGB')
-        rgb_image.save('/home/krzysztof/Desktop/ImageUploadAPI/media/images/Figure_1.png')
+        rgb_image.save('ImageUploader/tests/test_image/ball.jpg')
 
-        path = "/home/krzysztof/Desktop/ImageUploadAPI/media/images/Figure_1.png"
+        path = "ImageUploader/tests/test_image/ball.jpg"
         with open(path, "rb") as f:
             file_obj = File(f, name=os.path.basename(path))
             file_obj.seek(0)  # rewind the file pointer
