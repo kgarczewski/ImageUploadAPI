@@ -21,7 +21,6 @@ def get_default_plan():
 class CustomUser(AbstractUser):
     account_tier = models.ForeignKey(
         Plan, on_delete=models.CASCADE, related_name='account_tier_users', to_field='name', null=True, blank=True,
-        # default=get_default_plan
     )
 
 

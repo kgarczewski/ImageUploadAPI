@@ -6,6 +6,12 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def set_default_account_tier(apps, schema_editor):
+    CustomUser = apps.get_model('ImageUploader', 'CustomUser')
+    Plan = apps.get_model('ImageUploader', 'Plan')
+    basic_plan = Plan.objects.get(name='Basic')
+    CustomUser.objects.filter(account_tier=None).update(account_tier=basic_plan)
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,9 +19,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='customuser',
-            name='account_tier',
-            field=models.ForeignKey(blank=True, default=ImageUploader.models.get_default_plan, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='account_tier_users', to='ImageUploader.plan', to_field='name'),
-        ),
+        migrations.RunPython(set_default_account_tier),
     ]
