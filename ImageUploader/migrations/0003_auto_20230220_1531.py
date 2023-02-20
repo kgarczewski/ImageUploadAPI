@@ -6,7 +6,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ImageUploader', '0002_auto_20230220_1123'),
+        ('ImageUploader', '0002_auto_20230220_1530'),
     ]
 
     operations = [
