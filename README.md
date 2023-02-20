@@ -12,6 +12,14 @@ Then, navigate to the project directory and use Docker Compose to start the API:
     docker-compose run web python manage.py migrate 
     docker-compose up --build
 
+Now to create superuser and have acces to django-admin run:
+
+    sudo docker exec -it imageuploadapi_web_1 python manage.py createsuperuser
+
+After that u can hit http://127.0.0.1:8000/admin/ and create users to have full app functionality. Than You can 
+
+
+
 <h3>Uploading Images</h3>
 
 To upload an image, send a POST request to the /images/ endpoint, with the image file attached as a multipart/form-data payload. The API will respond with a JSON object containing the URL of the uploaded image, as well as any thumbnail URLs that apply to the user's plan.
