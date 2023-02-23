@@ -5,7 +5,7 @@ This is an API for uploading and managing images, with different tiers of servic
 <h3>Running the Project</h3>
 To run the project, first clone the repository from GitHub:
 
-    git clone https://github.com/your-username/your-repository.git
+    git clone git@github.com:kgarczewski/ImageUploadAPI.git
 Then, navigate to the project directory and use Docker Compose to start the API:
     
     cd ImageUploadAPI
