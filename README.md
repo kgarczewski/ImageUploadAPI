@@ -1,4 +1,4 @@
-<h2>Image Upload API</h2>
+<h2>Image Upload API - Django Rest Framework</h2>
 
 This is an API for uploading and managing images, with different tiers of service available depending on the user's plan.
 
